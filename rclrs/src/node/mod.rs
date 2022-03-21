@@ -317,7 +317,6 @@ impl Node {
 mod tests {
     use super::*;
     use crate::{Context, Node, QOS_PROFILE_DEFAULT};
-    use rclrs_common::error::RclReturnCode;
     use std::{env, println};
     use std_msgs;
 

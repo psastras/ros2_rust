@@ -17,6 +17,9 @@ parking_lot = "0.11.2"
 # Needed for the Message trait, among others
 rosidl_runtime_rs = "*"
 
+[dev-dependencies.std_msgs]
+version = "*"
+
 [build-dependencies]
 # Needed for FFI
 bindgen = "0.59.1"
