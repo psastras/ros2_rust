@@ -62,7 +62,6 @@ where
     pub(crate) handle: Arc<SubscriptionHandle>,
     /// The callback function that runs when a message was received.
     pub callback: Mutex<Box<dyn FnMut(T) + 'static>>,
-    message: PhantomData<T>,
 }
 
 impl<T> Subscription<T>
@@ -117,7 +116,6 @@ where
         Ok(Self {
             handle,
             callback: Mutex::new(Box::new(callback)),
-            message: PhantomData,
         })
     }
 

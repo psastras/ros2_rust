@@ -143,3 +143,17 @@ pub trait Message: Clone + Debug + Default + 'static {
     /// Converts the RMW-compatible message into an idiomatic message.
     fn from_rmw_message(msg: Self::RmwMsg) -> Self;
 }
+
+pub trait RmwService {
+    type Request: RmwMessage;
+    type Response: RmwMessage;
+
+    fn get_type_support() -> libc::uintptr_t;
+}
+
+pub trait Service {
+    type Request: Message;
+    type Response: Message;
+
+    fn get_type_support() -> libc::uintptr_t;
+}
