@@ -107,9 +107,9 @@ pub fn spin(node: &Node) -> Result<(), RclReturnCode> {
 
 pub fn spin_until_future_complete<T: Unpin + Clone>(
     node: &node::Node,
-    mut future: Arc<Mutex<Box<crate::future::RclFuture<T>>>>,
-) -> Result<<crate::future::RclFuture<T> as Future>::Output, RclReturnCode> {
-    let mut cx = crate::future::create_rcl_waker_context();
+    mut future: Arc<Mutex<Box<future::RclFuture<T>>>>,
+) -> Result<<future::RclFuture<T> as Future>::Output, RclReturnCode> {
+    let mut cx = future::create_rcl_waker_context();
 
     loop {
         let context_valid = unsafe { rcl_context_is_valid(&mut *node.context.lock()) };

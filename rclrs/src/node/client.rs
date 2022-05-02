@@ -1,21 +1,22 @@
+use std::borrow::Borrow;
+use std::boxed::Box;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::Arc;
 
 use crate::error::{ClientErrorCode, ToResult};
 use crate::future::RclFuture;
 use crate::MessageCow;
+use crate::Node;
 use crate::{rcl_bindings::*, RclReturnCode};
-use crate::{Node, NodeHandle};
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use core::borrow::Borrow;
-use cstr_core::CString;
+
 use parking_lot::{Mutex, MutexGuard};
 use rosidl_runtime_rs::Message;
 
 pub struct ClientHandle {
     handle: Mutex<rcl_client_t>,
-    node_handle: Arc<NodeHandle>,
+    node_handle: Arc<rcl_node_t>,
 }
 
 impl ClientHandle {

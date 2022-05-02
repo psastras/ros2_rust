@@ -1,10 +1,12 @@
+use std::borrow::Borrow;
+use std::boxed::Box;
+use std::ffi::CString;
+use std::sync::Arc;
+
 use crate::error::{ServiceErrorCode, ToResult};
+use crate::Node;
 use crate::{rcl_bindings::*, RclReturnCode};
-use crate::{Node, NodeHandle};
-use alloc::boxed::Box;
-use alloc::sync::Arc;
-use core::borrow::Borrow;
-use cstr_core::CString;
+
 use rosidl_runtime_rs::Message;
 
 use crate::node::publisher::MessageCow;
@@ -13,7 +15,7 @@ use parking_lot::{Mutex, MutexGuard};
 
 pub struct ServiceHandle {
     handle: Mutex<rcl_service_t>,
-    node_handle: Arc<NodeHandle>,
+    node_handle: Arc<rcl_node_t>,
 }
 
 impl ServiceHandle {
