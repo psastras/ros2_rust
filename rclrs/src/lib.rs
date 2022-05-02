@@ -22,8 +22,6 @@ pub use wait::*;
 use rcl_bindings::rcl_context_is_valid;
 use std::time::Duration;
 
-use std::pin::Pin;
-
 pub use rcl_bindings::rmw_request_id_t;
 
 /// Polls the node for new messages and executes the corresponding callbacks.
@@ -107,43 +105,14 @@ pub fn spin(node: &Node) -> Result<(), RclReturnCode> {
     Ok(())
 }
 
-#[derive(Clone)]
-struct RclWaker {}
-
-fn rclwaker_wake(_s: &RclWaker) {}
-
-fn rclwaker_wake_by_ref(_s: &RclWaker) {}
-
-fn rclwaker_clone(s: &RclWaker) -> RawWaker {
-    let arc = unsafe { Arc::from_raw(s) };
-    std::mem::forget(arc.clone());
-    RawWaker::new(Arc::into_raw(arc) as *const (), &VTABLE)
-}
-
-const VTABLE: RawWakerVTable = unsafe {
-    RawWakerVTable::new(
-        |s| rclwaker_clone(&*(s as *const RclWaker)),
-        |s| rclwaker_wake(&*(s as *const RclWaker)),
-        |s| rclwaker_wake_by_ref(&*(s as *const RclWaker)),
-        |s| drop(Arc::from_raw(s as *const RclWaker)),
-    )
-};
-
-fn rclwaker_into_waker(s: *const RclWaker) -> Waker {
-    let raw_waker = RawWaker::new(s as *const (), &VTABLE);
-    unsafe { Waker::from_raw(raw_waker) }
-}
-
 pub fn spin_until_future_complete<T: Unpin + Clone>(
     node: &node::Node,
-    mut future: Arc<Mutex<Box<RclFuture<T>>>>,
-) -> Result<<future::RclFuture<T> as Future>::Output, RclReturnCode> {
-    let rclwaker = Arc::new(RclWaker {});
-    let waker = rclwaker_into_waker(Arc::into_raw(rclwaker));
-    let mut cx = std::task::Context::from_waker(&waker);
+    mut future: Arc<Mutex<Box<crate::future::RclFuture<T>>>>,
+) -> Result<<crate::future::RclFuture<T> as Future>::Output, RclReturnCode> {
+    let mut cx = crate::future::create_rcl_waker_context();
 
     loop {
-        let context_valid = unsafe { rcl_context_is_valid(&mut *node.context.lock() as *mut _) };
+        let context_valid = unsafe { rcl_context_is_valid(&mut *node.context.lock()) };
         if context_valid {
             if let Some(error) = spin_once(node, None).err() {
                 match error {
