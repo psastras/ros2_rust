@@ -4,7 +4,9 @@ pub use self::publisher::*;
 pub use self::subscription::*;
 
 use crate::rcl_bindings::*;
-use crate::{Context, QoSProfile, RclrsError, ToResult};
+use crate::{
+    resolve_parameter_overrides, Context, ParameterOverrideMap, QoSProfile, RclrsError, ToResult,
+};
 use std::ffi::{CStr, CString};
 
 use std::cmp::PartialEq;
@@ -42,6 +44,7 @@ pub struct Node {
     handle: Arc<Mutex<rcl_node_t>>,
     pub(crate) context: Arc<Mutex<rcl_context_t>>,
     pub(crate) subscriptions: Vec<Weak<dyn SubscriptionBase>>,
+    _parameter_map: ParameterOverrideMap,
 }
 
 impl Eq for Node {}
@@ -149,12 +152,18 @@ impl Node {
             .ok()?;
         }
 
+        let _parameter_map = unsafe {
+            let fqn = run_string_getter_with_handle(&node_handle, rcl_node_get_fully_qualified_name);
+            resolve_parameter_overrides(fqn, &context_handle.global_arguments)?
+        };
+
         let handle = Arc::new(Mutex::new(node_handle));
 
         Ok(Node {
             handle,
             context: context.handle.clone(),
-            subscriptions: std::vec![],
+            subscriptions: vec![],
+            _parameter_map,
         })
     }
 
@@ -178,7 +187,7 @@ impl Node {
     /// # Ok::<(), RclrsError>(())
     /// ```
     pub fn name(&self) -> String {
-        self.get_string(rcl_node_get_name)
+        self.run_string_getter(rcl_node_get_name)
     }
 
     /// Returns the namespace of the node.
@@ -201,7 +210,7 @@ impl Node {
     /// # Ok::<(), RclrsError>(())
     /// ```
     pub fn namespace(&self) -> String {
-        self.get_string(rcl_node_get_namespace)
+        self.run_string_getter(rcl_node_get_namespace)
     }
 
     /// Returns the fully qualified name of the node.
@@ -218,26 +227,15 @@ impl Node {
     /// # Ok::<(), RclrsError>(())
     /// ```
     pub fn fully_qualified_name(&self) -> String {
-        self.get_string(rcl_node_get_fully_qualified_name)
+        self.run_string_getter(rcl_node_get_fully_qualified_name)
     }
 
     // Helper for name(), namespace(), fully_qualified_name()
-    fn get_string(
+    fn run_string_getter(
         &self,
         getter: unsafe extern "C" fn(*const rcl_node_t) -> *const c_char,
     ) -> String {
-        let char_ptr = unsafe {
-            // SAFETY: The node handle is valid.
-            getter(&*self.handle.lock())
-        };
-        debug_assert!(!char_ptr.is_null());
-        let cstr = unsafe {
-            // SAFETY: The returned CStr is immediately converted to an owned string,
-            // so the lifetime is no issue. The ptr is valid as per the documentation
-            // of rcl_node_get_name.
-            CStr::from_ptr(char_ptr)
-        };
-        cstr.to_string_lossy().into_owned()
+        unsafe { run_string_getter_with_handle(&*self.handle.lock(), getter) }
     }
 
     /// Creates a [`Publisher`][1].
@@ -315,4 +313,21 @@ impl Node {
         debug_assert_eq!(ret, 0);
         domain_id
     }
+}
+
+// Helper used to implement run_string_getter(), but also used to get the FQN in the Node::new()
+// function, which is why it's not merged into Node::run_string_getter().
+// This function is unsafe since it's possible to pass in an rcl_node_t with dangling
+// pointers etc.
+unsafe fn run_string_getter_with_handle(
+    rcl_node: &rcl_node_t,
+    getter: unsafe extern "C" fn(*const rcl_node_t) -> *const c_char,
+) -> String {
+    let char_ptr = getter(rcl_node);
+    debug_assert!(!char_ptr.is_null());
+    // SAFETY: The returned CStr is immediately converted to an owned string,
+    // so the lifetime is no issue. The ptr is valid as per the documentation
+    // of rcl_node_get_name.
+    let cstr = CStr::from_ptr(char_ptr);
+    cstr.to_string_lossy().into_owned()
 }
